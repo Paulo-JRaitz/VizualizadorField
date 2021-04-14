@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Zeus Pics Area de Cobertura</title>
+    <link
+      rel="shortcut icon"
+      href="https://img.icons8.com/small/100/000000/network.png/"
+      type="image/x-icon"
+    />
+    <link rel="stylesheet" href="index.css" />
+    <meta
+      name="viewport"
+      content="initial-scale=1,maximum-scale=1,user-scalable=no"
+    />
+    <link
+      href="https://api.mapbox.com/mapbox-gl-js/v2.2.0/mapbox-gl.css"
+      rel="stylesheet"
+    />
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.2.0/mapbox-gl.js"></script>
+    <script src="./map.js"></script>
+    <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+    <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.2.1/mapbox-gl-draw.js"></script>
+    <link
+      rel="stylesheet"
+      href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.2.1/mapbox-gl-draw.css"
+      type="text/css"
+    />
+  </head>
+  <body>
+    <div id="map"></div>
+    <div id="calculated-area"></div>
+    <script>
+      var talhao = [-58.842871, -13.839649];
+      function readJsonFile(file, callback) {
+        var rawFile = new XMLHttpRequest();
+        rawFile.overrideMimeType('application/json');
+        rawFile.open('GET', file, true);
+        rawFile.onreadystatechange = function () {
+          if (rawFile.readyState === 4 && rawFile.status == '200') {
+            callback(rawFile.responseText);
+          }
+        };
+        rawFile.send(null);
+      }
+      mapboxgl.accessToken =
+        'pk.eyJ1IjoicGF1bG8tanJhaXR6IiwiYSI6ImNrbXdmdWRldjAxZG4yeHFrZ2t3OGFxc3EifQ.zKYsP0pj2QD3sMj61P9BvA';
+      var map = new mapboxgl.Map({
+        container: 'map',
+        style: 'mapbox://styles/mapbox/satellite-v9',
+        center: talhao,
+        zoom: 12,
+      });
+      readJsonFile('./data.json', function (data) {
+        var data = JSON.parse(data);
+        var posicaoMarker = [0, 0];
+        var elementLon = [0];
+        var elementLat = [0];
+
+        for (let index = 0; index < data.length; index++) {
+          elementLon = data[index].Lon;
+          elementLat = data[index].Lat;
+          posicaoMarker = [elementLon, elementLat];
+          var information = new mapboxgl.Popup({ offset: 25 }).setText(
+            `talhão : ${data[index].name} 
+             Chuva: ${data[index].SomatorioRain} milimetros
+             Cidade: ${data[index].Location}`
+          );
+          var el = document.createElement('div');
+          el.id = 'marker';
+          new mapboxgl.Marker(el)
+            .setLngLat(posicaoMarker)
+            .setPopup(information)
+            .addTo(map);
+        }
+      });
+      var hoveredStateId = null;
+      map.on('load', function () {
+        map.addSource('talhoes', {
+          type: 'geojson',
+          data: 'talhoes.json',
+        });
+
+        map.addLayer({
+          id: 'state-fills',
+          type: 'fill',
+          source: 'talhoes',
+          layout: {},
+          paint: {
+            'fill-color': '#5b874b',
+            'fill-opacity': [
+              'case',
+              ['boolean', ['feature-state', 'hover'], false],
+              0.5,
+              0.2,
+            ],
+          },
+        });
+
+        map.addLayer({
+          id: 'state-borders',
+          type: 'line',
+          source: 'talhoes',
+          layout: {},
+          paint: {
+            'line-color': '#357a38',
+            'line-width': 2,
+          },
+        });
+
+        map.on('mousemove', 'state-fills', function (e) {
+          if (e.features.length > 0) {
+            if (hoveredStateId !== null) {
+              map.setFeatureState(
+                { source: 'talhoes', id: hoveredStateId },
+                { hover: false }
+              );
+            }
+            hoveredStateId = e.features[0].id;
+            map.setFeatureState(
+              { source: 'talhoes', id: hoveredStateId },
+              { hover: true }
+            );
+          }
+        });
+
+        map.on('mouseleave', 'state-fills', function () {
+          if (hoveredStateId !== null) {
+            map.setFeatureState(
+              { source: 'talhoes', id: hoveredStateId },
+              { hover: false }
+            );
+          }
+          hoveredStateId = null;
+        });
+      });
+    </script>
+  </body>
+</html>
